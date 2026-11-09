@@ -1,0 +1,1181 @@
+<!DOCTYPE html>
+<!--
+╔══════════════════════════════════════════════════════════════════════╗
+║  LEGGIO — il sito che raccoglie i CV dei giovani musicisti            ║
+║                                                                      ║
+║  Come è fatto questo file (dall'alto verso il basso):                ║
+║    1. <head>   → titolo, font di Google e tutto lo STILE (CSS)        ║
+║    2. <body>   → lo SCHELETRO delle pagine (HTML)                     ║
+║    3. <script> → i DATI dei musicisti e tutta la LOGICA (JavaScript)  ║
+║                                                                      ║
+║  Il sito ha DUE "pagine" che in realtà stanno nello stesso file:     ║
+║    • la HOME   (#home)            → carosello, ricerca, schede       ║
+║    • il PROFILO (#nome-cognome)   → il CV completo di un musicista    ║
+║  Quale si vede lo decide il pezzo dopo il # nell'indirizzo           ║
+║  (vedi la parte "ROUTER" in fondo allo script).                      ║
+║                                                                      ║
+║  PER AGGIUNGERE UN MUSICISTA: vai nello script, cerca "DATI DEI       ║
+║  MUSICISTI", copia il blocco di Filimon e cambia i campi.             ║
+║  Le foto vanno messe nella cartella img/ accanto a questo file.      ║
+╚══════════════════════════════════════════════════════════════════════╝
+-->
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<!-- Questa riga fa sì che sul telefono il sito non sia "rimpicciolito" -->
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Leggio — Giovani Musicisti</title>
+
+<!-- FONT: Cormorant Garamond (quello elegante, con le grazie, per i titoli)
+     e Manrope (quello pulito per i testi piccoli e i bottoni) -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Manrope:wght@300;400;500;600&display=swap" rel="stylesheet">
+
+<style>
+/* ======================================================================
+   CSS — LO STILE
+   Ogni blocco è numerato. Se voglio cambiare l'aspetto di una parte,
+   cerco il suo numero qui sotto.
+   ====================================================================== */
+
+
+/* ----------------------------------------------------------------------
+   1. COLORI E VARIABILI
+   Qui ci sono tutti i colori del sito in un posto solo.
+   Se cambio --gold qui, cambia il giallo in TUTTO il sito.
+   ---------------------------------------------------------------------- */
+:root{
+  --ink:#0f0d0b;                 /* nero caldo: lo sfondo principale        */
+  --ink-2:#17140f;               /* nero un po' più chiaro: sezioni alterne */
+  --paper:#f3ede2;               /* bianco "carta": il testo principale     */
+  --paper-dim:#cfc6b7;           /* bianco spento: testi secondari          */
+  --muted:#8d8476;               /* grigio: didascalie e note               */
+  --gold:#c99a4b;                /* IL GIALLO/ORO del marchio               */
+  --gold-soft:rgba(201,154,75,.14);  /* oro trasparente per gli aloni       */
+  --line:rgba(243,237,226,.12);      /* colore delle righe sottili          */
+
+  --serif:'Cormorant Garamond', Georgia, serif;   /* font titoli */
+  --sans:'Manrope', system-ui, sans-serif;        /* font testi  */
+
+  --ease:cubic-bezier(.2,.7,.1,1);   /* la "curva" delle animazioni: parte veloce e frena morbida */
+  --header-h:68px;                   /* altezza della barra in alto (serve anche allo script)   */
+}
+
+
+/* ----------------------------------------------------------------------
+   2. BASE
+   Azzero i margini del browser e imposto font e colori di base.
+   ---------------------------------------------------------------------- */
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  background:var(--ink);
+  color:var(--paper);
+  font-family:var(--sans);
+  line-height:1.6;
+  -webkit-font-smoothing:antialiased;
+  -webkit-tap-highlight-color:transparent;  /* toglie il riquadro colorato quando tocco qualcosa sul telefono */
+  overflow-x:hidden;
+}
+img{display:block;max-width:100%}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+a{color:inherit}
+
+/* .wrap = il "contenitore" centrale: larghezza massima 1180px con 20px di margine ai lati */
+.wrap{width:min(1180px,100% - 40px);margin-inline:auto}
+
+/* .eyebrow = le scritte piccole in maiuscolo dorate sopra i titoli */
+.eyebrow{font-size:.72rem;letter-spacing:.28em;text-transform:uppercase;color:var(--gold);font-weight:500}
+
+
+/* ----------------------------------------------------------------------
+   3. BARRA IN ALTO (header)
+   All'inizio è trasparente; quando scorro giù diventa scura e sfocata
+   (lo fa lo script aggiungendo la classe .solid).
+   ---------------------------------------------------------------------- */
+header.top{position:fixed;inset:0 0 auto 0;z-index:40;border-bottom:1px solid transparent;transition:background .4s,border-color .4s}
+header.top.solid{background:rgba(15,13,11,.88);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-color:var(--line)}
+.top .wrap{display:flex;align-items:center;justify-content:space-between;height:var(--header-h)}
+.logo{font-family:var(--serif);font-size:1.7rem;text-decoration:none}
+.logo i{font-style:italic;color:var(--gold)}           /* il "gio" in corsivo oro */
+.nav{display:flex;gap:1.6rem;font-size:.82rem;letter-spacing:.06em}
+.nav button{color:var(--paper-dim);transition:color .2s}
+.nav button:hover{color:var(--paper)}
+
+
+/* ----------------------------------------------------------------------
+   4. LE DUE "PAGINE" (view)
+   Tutte e due esistono sempre, ma se ne vede una sola: quella con .on
+   ---------------------------------------------------------------------- */
+.view{display:none}
+.view.on{display:block;animation:fadeIn .7s var(--ease)}
+@keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+
+
+/* ----------------------------------------------------------------------
+   5. HOME — GRANDE APERTURA CON CAROSELLO
+   Le foto stanno una sopra l'altra (position:absolute). Solo quella con
+   .on è visibile: cambiando classe, le foto si dissolvono l'una nell'altra.
+   ---------------------------------------------------------------------- */
+.hero{position:relative;min-height:92vh;display:flex;align-items:flex-end;padding:120px 0 70px;overflow:hidden}
+
+/* il contenitore delle foto del carosello */
+.slides{position:absolute;inset:0}
+.slide{
+  position:absolute;inset:0;
+  background-size:cover;background-position:center 35%;
+  filter:grayscale(1) brightness(.42);   /* tutte in bianco e nero e scurite, così il testo si legge */
+  opacity:0;transform:scale(1.08);
+  transition:opacity 1.6s ease, transform 7s ease-out;  /* dissolvenza + leggero zoom lento */
+}
+.slide.on{opacity:1;transform:scale(1)}
+
+/* sfumatura sopra le foto che scende verso il nero in basso */
+.hero::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(15,13,11,.3) 0%,rgba(15,13,11,.2) 40%,var(--ink) 100%);pointer-events:none}
+.hero .wrap{position:relative;z-index:2}
+
+/* le 5 righe orizzontali che ricordano un pentagramma */
+.staff{position:absolute;left:0;right:0;top:46%;z-index:1;opacity:.13;pointer-events:none}
+.staff span{display:block;height:1px;background:var(--paper);margin:11px 0}
+
+.hero h1{font-family:var(--serif);font-weight:400;font-size:clamp(2.8rem,8vw,6.4rem);line-height:.98;margin-bottom:1.2rem;max-width:12ch}
+.hero h1 em{color:var(--gold)}
+.hero .lead{max-width:46ch;color:var(--paper-dim);font-size:1.02rem;font-weight:300}
+
+/* didascalia del carosello in basso a destra: "In foto: Nome Cognome" + pallini */
+.slide-caption{position:absolute;right:20px;bottom:24px;z-index:3;display:flex;align-items:center;gap:1rem;font-size:.74rem;letter-spacing:.12em;text-transform:uppercase;color:var(--paper-dim)}
+.slide-caption button{text-decoration:none;border-bottom:1px solid var(--gold);padding-bottom:2px;letter-spacing:.12em;text-transform:uppercase}
+.dots{display:flex;gap:6px}
+.dots button{width:7px;height:7px;border-radius:50%;background:rgba(243,237,226,.3);transition:all .3s}
+.dots button.on{background:var(--gold);width:20px;border-radius:4px}
+@media(max-width:640px){.slide-caption{left:20px;right:20px;justify-content:space-between;bottom:16px}}
+
+
+/* ----------------------------------------------------------------------
+   6. HOME — BARRA DI RICERCA E FILTRI (chips)
+   ---------------------------------------------------------------------- */
+.finder{margin-top:2.2rem;max-width:640px}
+.search{display:flex;align-items:center;gap:.8rem;background:rgba(243,237,226,.07);border:1px solid var(--line);border-radius:999px;padding:.35rem .4rem .35rem 1.2rem;backdrop-filter:blur(8px);transition:border-color .3s}
+.search:focus-within{border-color:var(--gold)}   /* il bordo diventa oro mentre scrivo */
+.search svg{flex:none;opacity:.6}
+.search input{flex:1;min-width:0;background:none;border:0;outline:0;color:var(--paper);font:inherit;font-size:.98rem;padding:.6rem 0}
+.search input::placeholder{color:var(--muted)}
+.search .go{background:var(--gold);color:var(--ink);border-radius:999px;padding:.7rem 1.3rem;font-weight:600;font-size:.82rem}
+.chips{display:flex;flex-wrap:wrap;gap:.5rem;margin-top:1rem}
+.chip{border:1px solid var(--line);border-radius:999px;padding:.42rem 1rem;font-size:.8rem;color:var(--paper-dim);transition:all .25s}
+.chip:hover{border-color:var(--paper-dim);color:var(--paper)}
+.chip.on{background:var(--paper);color:var(--ink);border-color:var(--paper)}  /* il filtro attivo è "pieno" */
+
+
+/* ----------------------------------------------------------------------
+   7. HOME — FASCIA DEI NUMERI (Musicisti · Strumenti · Città)
+   ---------------------------------------------------------------------- */
+.band{border-block:1px solid var(--line);padding:1.6rem 0}
+.band .wrap{display:grid;grid-template-columns:repeat(3,1fr);text-align:center}
+.band b{display:block;font-family:var(--serif);font-weight:400;font-size:2.4rem;line-height:1}
+.band span{font-size:.7rem;letter-spacing:.2em;text-transform:uppercase;color:var(--muted)}
+
+
+/* ----------------------------------------------------------------------
+   8. HOME — SCHEDE DEI MUSICISTI (la griglia)
+   ---------------------------------------------------------------------- */
+section.block{padding:90px 0}
+.head-row{display:flex;justify-content:space-between;align-items:flex-end;gap:2rem;flex-wrap:wrap;margin-bottom:2.6rem}
+.head-row h2{font-family:var(--serif);font-weight:400;font-size:clamp(2rem,4.5vw,3.2rem);line-height:1.05}
+.head-row p{color:var(--muted);max-width:40ch;font-size:.92rem}
+
+/* la griglia si adatta da sola: tante colonne quante ne entrano da almeno 270px */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:22px}
+
+/* la scheda singola: foto a tutta altezza + testo in basso su sfumatura scura */
+.card{position:relative;aspect-ratio:3/4;width:100%;border-radius:4px;overflow:hidden;background:var(--ink-2);text-align:left;isolation:isolate}
+.card img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transition:transform 1.2s var(--ease)}
+.card:hover img{transform:scale(1.06)}   /* zoom leggero passando sopra */
+.card::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,transparent 35%,rgba(10,9,7,.92));z-index:1}
+.card .meta{position:absolute;left:0;right:0;bottom:0;padding:1.4rem;z-index:2}
+.card .inst{font-size:.68rem;letter-spacing:.24em;text-transform:uppercase;color:var(--gold)}
+.card h3{font-family:var(--serif);font-weight:500;font-size:1.9rem;line-height:1.05;margin:.35rem 0 .5rem}
+.card .tags{display:flex;flex-wrap:wrap;gap:.35rem}
+.card .tags span{font-size:.7rem;color:var(--paper-dim);border:1px solid var(--line);border-radius:999px;padding:.18rem .6rem}
+.card .arrow{position:absolute;top:1.1rem;right:1.1rem;z-index:2;width:40px;height:40px;border-radius:50%;border:1px solid rgba(243,237,226,.35);display:grid;place-items:center;transition:all .4s var(--ease)}
+.card:hover .arrow{background:var(--gold);border-color:var(--gold);color:var(--ink);transform:rotate(-45deg)}
+
+/* la scheda tratteggiata "Il tuo profilo qui" */
+.card.join{border:1px dashed rgba(243,237,226,.25);background:transparent;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;padding:2rem;gap:1rem;transition:border-color .3s,background .3s}
+.card.join::after{display:none}
+.card.join:hover{border-color:var(--gold);background:var(--gold-soft)}
+.card.join .plus{width:64px;height:64px;border-radius:50%;border:1px solid var(--gold);display:grid;place-items:center;color:var(--gold);font-size:1.8rem;font-family:var(--serif)}
+.card.join h3{font-family:var(--serif);font-weight:500;font-size:1.7rem}
+.card.join p{color:var(--muted);font-size:.86rem;max-width:26ch}
+
+/* messaggio quando la ricerca non trova nessuno */
+.empty{display:none;padding:3rem 0;color:var(--muted);text-align:center;font-family:var(--serif);font-size:1.4rem;font-style:italic}
+
+
+/* ----------------------------------------------------------------------
+   9. HOME — FRASE + 3 PASSI (sezione scura in fondo)
+   ---------------------------------------------------------------------- */
+.manifesto{background:var(--ink-2);border-block:1px solid var(--line)}
+.manifesto .wrap{display:grid;grid-template-columns:1fr 1fr;gap:4rem;align-items:center}
+.manifesto blockquote{font-family:var(--serif);font-size:clamp(1.7rem,3.4vw,2.6rem);line-height:1.2}
+.manifesto blockquote em{color:var(--gold)}
+.steps{display:grid;gap:1.6rem}
+.steps > div{display:grid;grid-template-columns:44px 1fr;gap:1rem}
+.steps b{font-family:var(--serif);font-size:1.6rem;color:var(--gold);font-weight:400;line-height:1}
+.steps h4{font-weight:600;font-size:.95rem;margin-bottom:.2rem}
+.steps p{color:var(--muted);font-size:.88rem}
+@media(max-width:820px){.manifesto .wrap{grid-template-columns:1fr;gap:2.4rem}}
+
+footer{padding:50px 0;color:var(--muted);font-size:.8rem;border-top:1px solid var(--line)}
+footer .wrap{display:flex;justify-content:space-between;gap:1rem;flex-wrap:wrap}
+
+
+/* ----------------------------------------------------------------------
+   10. PROFILO — APERTURA CON FOTO GRANDE
+   ---------------------------------------------------------------------- */
+.p-hero{position:relative;min-height:100vh;display:flex;align-items:flex-end;overflow:hidden}
+.p-hero .bg{position:absolute;inset:0;background-size:cover;background-position:center 30%;transform:scale(1.05);transition:transform 2s var(--ease)}
+.p-hero.ready .bg{transform:scale(1)}
+/* due sfumature: una da sinistra (per leggere il nome) e una dal basso */
+.p-hero::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,rgba(15,13,11,.88) 0%,rgba(15,13,11,.35) 60%,rgba(15,13,11,.1)),linear-gradient(180deg,transparent 55%,var(--ink))}
+.p-hero .wrap{position:relative;z-index:2;padding-bottom:70px}
+.back{display:inline-flex;align-items:center;gap:.5rem;font-size:.78rem;letter-spacing:.14em;text-transform:uppercase;color:var(--paper-dim);margin-bottom:2rem;text-decoration:none}
+.back:hover{color:var(--gold)}
+.p-hero h1{font-family:var(--serif);font-weight:400;font-size:clamp(3.2rem,10vw,7.5rem);line-height:.9;margin-top:1rem}
+.p-hero h1 span{display:block;font-style:italic;color:var(--gold)}  /* il cognome va a capo in corsivo oro */
+.p-role{margin-top:1.4rem;font-size:1rem;color:var(--paper-dim);max-width:48ch;font-weight:300}
+.p-cta{display:flex;gap:.8rem;flex-wrap:wrap;margin-top:2rem}
+.btn{display:inline-flex;align-items:center;gap:.6rem;padding:.85rem 1.5rem;border-radius:999px;font-size:.82rem;font-weight:600;letter-spacing:.05em;transition:all .3s}
+.btn.gold{background:var(--gold);color:var(--ink)}
+.btn.gold:hover{background:var(--paper)}
+.btn.ghost{border:1px solid rgba(243,237,226,.35)}
+.btn.ghost:hover{border-color:var(--paper)}
+
+
+/* ----------------------------------------------------------------------
+   11. PROFILO — I 4 NUMERI (Diplomi · Concerti · Concorsi · Lingue)
+   Ogni casella ha il numero e la scritta CENTRATI.
+   ---------------------------------------------------------------------- */
+.facts{display:grid;grid-template-columns:repeat(4,1fr);border-block:1px solid var(--line)}
+.facts div{padding:1.8rem 1rem;border-right:1px solid var(--line);text-align:center}
+.facts div:last-child{border-right:0}
+.facts b{display:block;font-family:var(--serif);font-weight:400;font-size:2.6rem;line-height:1;margin-bottom:.4rem}
+.facts span{font-size:.7rem;letter-spacing:.18em;text-transform:uppercase;color:var(--muted)}
+/* sul telefono diventano 2 × 2 */
+@media(max-width:720px){
+  .facts{grid-template-columns:1fr 1fr}
+  .facts div:nth-child(2){border-right:0}
+  .facts div:nth-child(-n+2){border-bottom:1px solid var(--line)}
+}
+
+
+/* ----------------------------------------------------------------------
+   12. PROFILO — BARRA DELLE SEZIONI (Profilo, Formazione, Concerti…)
+   È "sticky": quando arriva in alto resta attaccata sotto l'header.
+   La lineetta oro sotto la voce attiva la muove lo script.
+   ---------------------------------------------------------------------- */
+.tabs{position:sticky;top:var(--header-h);z-index:30;background:rgba(15,13,11,.92);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-bottom:1px solid var(--line)}
+.tabs .wrap{display:flex;gap:2rem;overflow-x:auto;scrollbar-width:none}
+.tabs .wrap::-webkit-scrollbar{display:none}
+.tabs button{position:relative;padding:1.1rem 0;font-size:.78rem;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);white-space:nowrap;transition:color .25s}
+.tabs button.on{color:var(--paper)}
+.tabs button::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px;background:var(--gold);transform:scaleX(0);transition:transform .4s var(--ease)}
+.tabs button.on::after{transform:scaleX(1)}
+
+
+/* ----------------------------------------------------------------------
+   13. PROFILO — STRUTTURA COMUNE DELLE SEZIONI
+   ---------------------------------------------------------------------- */
+.sec{padding:90px 0}
+.sec.alt{background:var(--ink-2);border-block:1px solid var(--line)}   /* sezioni con sfondo alternato */
+.sec-head{display:grid;grid-template-columns:260px 1fr;gap:3rem;margin-bottom:3rem}
+.sec-head h2{font-family:var(--serif);font-weight:400;font-size:clamp(2rem,4vw,2.9rem);line-height:1.05}
+.sec-head p{color:var(--muted);font-size:.92rem;max-width:52ch;align-self:end}
+@media(max-width:820px){.sec-head{grid-template-columns:1fr;gap:.8rem}}
+
+
+/* ----------------------------------------------------------------------
+   14. PROFILO — SEZIONE "PROFILO" (foto ritratto + presentazione)
+   ---------------------------------------------------------------------- */
+.about{display:grid;grid-template-columns:1.1fr 1fr;gap:4rem;align-items:center}
+.portrait{position:relative;aspect-ratio:4/5;overflow:hidden;border-radius:3px}
+.portrait img{width:100%;height:100%;object-fit:cover}
+.portrait::before{content:"";position:absolute;inset:14px;border:1px solid rgba(243,237,226,.25);z-index:1}  /* cornicetta interna */
+.about .intro{font-family:var(--serif);font-size:1.45rem;line-height:1.45}
+.about .bio{margin-top:1.2rem;font-size:.95rem;color:var(--paper-dim);line-height:1.75}
+.skills{display:flex;flex-wrap:wrap;gap:.5rem;margin-top:2rem}
+.skills span{border:1px solid var(--line);border-radius:999px;padding:.4rem .95rem;font-size:.8rem;color:var(--paper-dim)}
+.langs{margin-top:1.6rem;font-size:.85rem;color:var(--muted)}
+.langs b{color:var(--paper);font-weight:500}
+@media(max-width:820px){.about{grid-template-columns:1fr;gap:2.4rem}}
+
+
+/* ----------------------------------------------------------------------
+   15. PROFILO — FORMAZIONE (linea del tempo)
+   Ogni tappa: data a sinistra | pallino sulla linea | testo a destra.
+   Pallino PIENO = corso in corso. Niente effetti al passaggio del dito.
+   ---------------------------------------------------------------------- */
+.tl-item{display:grid;grid-template-columns:200px 28px 1fr;gap:1.4rem;padding-bottom:2.8rem}
+.tl-item .when{font-size:.78rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);padding-top:.35rem;text-align:right}
+.tl-item .dot{position:relative;display:flex;justify-content:center}
+.tl-item .dot::before{content:"";position:absolute;top:0;bottom:-2.8rem;width:1px;background:var(--line)}  /* la linea verticale */
+.tl-item:last-child .dot::before{bottom:0}
+.tl-item .dot i{position:relative;width:11px;height:11px;border-radius:50%;border:1px solid var(--gold);background:var(--ink);margin-top:.45rem}
+.tl-item.live .dot i{background:var(--gold);box-shadow:0 0 0 6px var(--gold-soft)}
+.tl-item h3{font-family:var(--serif);font-weight:500;font-size:1.6rem;line-height:1.15}
+.tl-item .where{color:var(--gold);font-size:.82rem;margin:.25rem 0 .6rem}
+.tl-item .body{color:var(--paper-dim);font-size:.92rem}
+.tl-item .grade{margin-top:.7rem;font-family:var(--serif);font-style:italic;font-size:1.15rem}
+.badge{display:inline-block;font-family:var(--sans);font-size:.62rem;letter-spacing:.18em;text-transform:uppercase;border:1px solid var(--gold);color:var(--gold);border-radius:999px;padding:.15rem .6rem;margin-left:.5rem;vertical-align:middle}
+.doc-link{display:inline-flex;align-items:center;gap:.45rem;margin-top:.9rem;font-size:.76rem;letter-spacing:.12em;text-transform:uppercase;border-bottom:1px solid var(--gold);padding-bottom:2px}
+/* sul telefono: data sopra, linea a sinistra */
+@media(max-width:720px){
+  .tl-item{grid-template-columns:20px 1fr;gap:.4rem 1rem}
+  .tl-item .when{grid-column:2;grid-row:1;text-align:left;padding:0}
+  .tl-item .dot{grid-column:1;grid-row:1/3}
+  .tl-item .txt{grid-column:2}
+}
+
+
+/* ----------------------------------------------------------------------
+   16. PROFILO — CONCERTI (riquadri FISSI: non sono cliccabili)
+   ---------------------------------------------------------------------- */
+.concerts{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:20px}
+.concert{background:var(--ink-2);border:1px solid var(--line);border-radius:4px;padding:1.8rem}
+.concert .date{display:flex;align-items:baseline;gap:.6rem}
+.concert .date b{font-family:var(--serif);font-weight:400;font-size:3rem;line-height:1;color:var(--gold)}
+.concert .date span{font-size:.72rem;letter-spacing:.2em;text-transform:uppercase;color:var(--muted)}
+.concert h3{font-family:var(--serif);font-weight:500;font-size:1.45rem;line-height:1.2;margin:1rem 0 .3rem}
+.concert .place{font-size:.84rem;color:var(--muted);margin-bottom:1.1rem}
+.concert .role{font-size:.68rem;letter-spacing:.2em;text-transform:uppercase;color:var(--paper-dim);margin-bottom:.6rem}
+.concert ul{list-style:none;border-top:1px solid var(--line)}
+.concert li{padding:.55rem 0;border-bottom:1px solid var(--line);font-size:.88rem;display:flex;gap:.7rem}
+.concert li::before{content:"♪";color:var(--gold);opacity:.7}
+
+
+/* ----------------------------------------------------------------------
+   17. PROFILO — GALLERIA (a "mattoncini", tipo Pinterest)
+   ---------------------------------------------------------------------- */
+.gallery{columns:3 280px;column-gap:14px}
+.gallery button{display:block;width:100%;margin-bottom:14px;break-inside:avoid;overflow:hidden;border-radius:3px}
+.gallery img{width:100%;transition:transform 1s var(--ease)}
+.gallery button:hover img{transform:scale(1.04)}
+
+
+/* ----------------------------------------------------------------------
+   18. PROFILO — DIPLOMI E PREMI (le "pergamene")
+   Se un attestato ha la sua scansione (campo img), si vede la foto;
+   altrimenti si vede la pergamena disegnata con il sigillo.
+   ---------------------------------------------------------------------- */
+.certs{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:20px}
+.cert{position:relative;aspect-ratio:1/1.3;background:linear-gradient(160deg,#f6f0e4,#e6dccb);color:#2a241c;border-radius:3px;padding:1.6rem 1.3rem;display:flex;flex-direction:column;justify-content:space-between;text-align:center;box-shadow:0 20px 40px -20px rgba(0,0,0,.7);transition:transform .6s var(--ease);overflow:hidden}
+.cert::before,.cert::after{content:"";position:absolute;pointer-events:none}
+.cert::before{inset:9px;border:1px solid rgba(140,106,52,.45)}    /* doppia cornice */
+.cert::after{inset:13px;border:1px solid rgba(140,106,52,.2)}
+.cert:hover{transform:translateY(-6px) rotate(-.6deg)}
+.cert .kind{font-size:.6rem;letter-spacing:.28em;text-transform:uppercase;color:#8c6a34}
+.cert h3{font-family:var(--serif);font-weight:500;font-size:1.35rem;line-height:1.15;margin-top:.8rem}
+.cert .seal{width:58px;height:58px;margin:0 auto;border-radius:50%;background:radial-gradient(circle at 35% 30%,#e0b766,#a87a33 70%);display:grid;place-items:center;color:#fff8e8;font-family:var(--serif);font-style:italic;box-shadow:inset 0 0 0 3px rgba(255,255,255,.25)}
+.cert .grade{font-family:var(--serif);font-style:italic;font-size:1.1rem;color:#4a3e2e}
+.cert .inst{font-size:.68rem;color:#7a6b56}
+.cert .open{font-size:.6rem;letter-spacing:.22em;text-transform:uppercase;color:#8c6a34;margin-top:.4rem}
+.cert.has-img{padding:0}
+.cert.has-img img{width:100%;height:100%;object-fit:cover}
+@media(max-width:640px){
+  .certs{grid-template-columns:1fr 1fr;gap:12px}
+  .cert{padding:1.1rem .8rem}
+  .cert h3{font-size:1.02rem}
+  .cert .seal{width:44px;height:44px;font-size:.9rem}
+  .cert .grade{font-size:.88rem}
+  .cert .kind,.cert .inst{font-size:.55rem}
+}
+
+
+/* ----------------------------------------------------------------------
+   19. PROFILO — CONTATTI
+   ---------------------------------------------------------------------- */
+.contact{text-align:center;padding:110px 0}
+.contact h2{font-family:var(--serif);font-weight:400;font-size:clamp(2.4rem,6vw,4.4rem);line-height:1}
+.contact h2 em{color:var(--gold)}
+.contact p{color:var(--muted);margin:1rem auto 2.4rem;max-width:44ch}
+.c-rows{display:grid;gap:12px;max-width:520px;margin:0 auto}
+.c-row{display:flex;align-items:center;justify-content:space-between;gap:1rem;border:1px solid var(--line);border-radius:999px;padding:.5rem .5rem .5rem 1.4rem;text-align:left}
+.c-row small{display:block;font-size:.62rem;letter-spacing:.2em;text-transform:uppercase;color:var(--muted)}
+.c-row a{text-decoration:none}
+.c-row button{flex:none;border:1px solid var(--line);border-radius:999px;padding:.6rem 1rem;font-size:.74rem;transition:all .25s}
+.c-row button:hover{border-color:var(--gold);color:var(--gold)}
+.c-row button.ok{background:var(--gold);color:var(--ink);border-color:var(--gold)}
+
+
+/* ----------------------------------------------------------------------
+   20. FINESTRE CHE SI APRONO SOPRA LA PAGINA
+   .lb    = lightbox: la foto a schermo intero con le frecce
+   .modal = riquadro con testo (diplomi, "come funziona", "unisciti")
+   Funzionano così: .on le mette nella pagina, .vis le fa apparire in dissolvenza.
+   ---------------------------------------------------------------------- */
+.lb,.modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;opacity:0;transition:opacity .35s}
+.lb.on,.modal.on{display:flex}
+.lb.vis,.modal.vis{opacity:1}
+
+.lb{z-index:100;background:rgba(8,7,6,.96)}
+.lb img{max-width:92vw;max-height:84vh;object-fit:contain;transition:opacity .3s}
+.round{position:absolute;width:48px;height:48px;border-radius:50%;border:1px solid rgba(243,237,226,.3);display:grid;place-items:center;background:rgba(15,13,11,.5);transition:all .25s}
+.round:hover{border-color:var(--gold);color:var(--gold)}
+.lb .x{top:20px;right:20px}
+.lb .prev{left:20px;top:50%;transform:translateY(-50%)}
+.lb .next{right:20px;top:50%;transform:translateY(-50%)}
+.lb .count{position:absolute;bottom:22px;left:50%;transform:translateX(-50%);font-size:.72rem;letter-spacing:.24em;color:var(--muted)}
+@media(max-width:640px){.lb .prev,.lb .next{top:auto;bottom:12px;transform:none}}
+
+.modal{z-index:110;background:rgba(8,7,6,.82);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);padding:20px}
+.sheet{position:relative;width:min(560px,100%);max-height:90vh;overflow:auto;background:var(--ink-2);border:1px solid var(--line);border-radius:6px;padding:2.4rem 2rem;transform:translateY(16px);transition:transform .45s var(--ease)}
+.modal.vis .sheet{transform:none}
+.sheet .x{position:absolute;top:14px;right:14px;width:38px;height:38px;border-radius:50%;border:1px solid var(--line);display:grid;place-items:center}
+.sheet h3{font-family:var(--serif);font-weight:400;font-size:2rem;line-height:1.1;margin:.6rem 0 1rem}
+.sheet h4{font-size:.72rem;letter-spacing:.2em;text-transform:uppercase;color:var(--gold);margin:1.6rem 0 .8rem}
+.sheet p{color:var(--paper-dim);font-size:.92rem}
+.sheet dl{display:grid;grid-template-columns:auto 1fr;gap:.55rem 1.4rem;margin:1.4rem 0;font-size:.9rem}
+.sheet dt{color:var(--muted);font-size:.7rem;letter-spacing:.18em;text-transform:uppercase;padding-top:.2rem}
+.sheet .doc{margin-top:1.4rem;border:1px dashed rgba(243,237,226,.2);border-radius:4px;padding:1.6rem;text-align:center;color:var(--muted);font-size:.85rem}
+.sheet .doc img{width:100%;border-radius:2px;cursor:zoom-in}
+.sheet ol{margin:1rem 0 0 1.1rem;color:var(--paper-dim);font-size:.9rem;display:grid;gap:.5rem}
+.sheet .steps{margin-top:.4rem}
+.sheet .c-row{margin-top:1.4rem}
+
+
+/* ----------------------------------------------------------------------
+   21. ANIMAZIONE DI COMPARSA
+   Gli elementi con .rv partono invisibili e un po' più in basso;
+   quando entrano nello schermo lo script aggiunge .in e "salgono".
+   ---------------------------------------------------------------------- */
+.rv{opacity:0;transform:translateY(28px);transition:opacity 1s var(--ease),transform 1s var(--ease)}
+.rv.in{opacity:1;transform:none}
+/* chi ha disattivato le animazioni nel telefono le vede subito ferme */
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}.rv{opacity:1;transform:none}}
+
+/* il fumetto "Copiato negli appunti" in basso */
+.toast{position:fixed;bottom:24px;left:50%;transform:translate(-50%,30px);background:var(--paper);color:var(--ink);padding:.7rem 1.3rem;border-radius:999px;font-size:.82rem;font-weight:600;opacity:0;transition:all .4s var(--ease);z-index:200;pointer-events:none}
+.toast.on{opacity:1;transform:translate(-50%,0)}
+</style>
+</head>
+
+
+<body>
+<!-- ======================================================================
+     HTML — LO SCHELETRO
+     Qui c'è solo la struttura fissa. Le schede, i profili e i carosello
+     vengono "riempiti" dallo script leggendo i DATI DEI MUSICISTI.
+     ====================================================================== -->
+
+
+<!-- BARRA IN ALTO: logo + 3 bottoni.
+     data-action dice allo script cosa fare quando li tocco. -->
+<header class="top" id="top">
+  <div class="wrap">
+    <a class="logo" href="#home">Leg<i>gio</i></a>
+    <nav class="nav">
+      <button data-action="roster">Musicisti</button>
+      <button data-action="how">Come funziona</button>
+      <button data-action="join">Unisciti</button>
+    </nav>
+  </div>
+</header>
+
+
+<!-- ===================== PAGINA HOME ===================== -->
+<main class="view" id="v-home">
+
+  <!-- Apertura: carosello di foto + titolo + ricerca -->
+  <section class="hero">
+    <div class="slides" id="slides"></div>          <!-- qui lo script mette le foto del carosello -->
+    <div class="staff"><span></span><span></span><span></span><span></span><span></span></div>
+    <div class="wrap">
+      <h1>Il musicista giusto <em>a portata di mano.</em></h1>
+      <p class="lead">Pianisti, violinisti, cantanti, compositori: i curricula dei giovani talenti raccolti in un unico posto, con formazione, concerti, diplomi e foto.</p>
+      <div class="finder">
+        <form class="search" id="searchForm">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+          <input id="q" type="search" placeholder="Cerca per nome, strumento, città…" autocomplete="off">
+          <button class="go" type="submit">Cerca</button>
+        </form>
+        <div class="chips" id="chips"></div>        <!-- qui lo script mette i filtri per strumento -->
+      </div>
+    </div>
+    <div class="slide-caption" id="slideCaption"></div>  <!-- "In foto: …" + pallini -->
+  </section>
+
+  <!-- Fascia dei numeri: lo script conta i valori veri dai dati -->
+  <div class="band"><div class="wrap">
+    <div><b data-count="musicians">0</b><span>Musicisti</span></div>
+    <div><b data-count="instruments">0</b><span>Strumenti</span></div>
+    <div><b data-count="cities">0</b><span>Città</span></div>
+  </div></div>
+
+  <!-- Griglia delle schede -->
+  <section class="block" id="roster">
+    <div class="wrap">
+      <div class="head-row rv">
+        <div><div class="eyebrow">Il roster</div><h2>I nostri musicisti</h2></div>
+        <p id="resultInfo"></p>
+      </div>
+      <div class="grid" id="grid"></div>
+      <div class="empty" id="empty">Nessun musicista corrisponde alla ricerca.</div>
+    </div>
+  </section>
+
+  <!-- Frase + 3 passi -->
+  <section class="block manifesto">
+    <div class="wrap">
+      <blockquote class="rv">Trovare un pianista per un recital, un violinista per un matrimonio, un maestro collaboratore per un'audizione: <em>dovrebbe essere semplice.</em></blockquote>
+      <div class="steps rv">
+        <div><b>I</b><div><h4>Cerca</h4><p>Filtra per strumento o scrivi quello che ti serve: repertorio, ruolo, città.</p></div></div>
+        <div><b>II</b><div><h4>Valuta</h4><p>Ogni profilo raccoglie formazione, concerti, premi e diplomi verificabili con un clic.</p></div></div>
+        <div><b>III</b><div><h4>Contatta</h4><p>Scrivi o chiama direttamente il musicista, senza intermediari.</p></div></div>
+      </div>
+    </div>
+  </section>
+
+  <footer><div class="wrap"><span>Leggio — giovani musicisti, un solo posto.</span><span>Roma · 2026</span></div></footer>
+</main>
+
+
+<!-- ===================== PAGINA PROFILO =====================
+     È vuota: la riempie lo script (funzione renderProfile)
+     con i dati del musicista che ho aperto. -->
+<main class="view" id="v-profile"></main>
+
+
+<!-- LIGHTBOX: foto a schermo intero -->
+<div class="lb" id="lb" role="dialog" aria-modal="true">
+  <button class="round x" data-close aria-label="Chiudi"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M5 5l14 14M19 5 5 19"/></svg></button>
+  <button class="round prev" aria-label="Precedente"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="m15 5-7 7 7 7"/></svg></button>
+  <img id="lbImg" alt="">
+  <button class="round next" aria-label="Successiva"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="m9 5 7 7-7 7"/></svg></button>
+  <div class="count" id="lbCount"></div>
+</div>
+
+<!-- MODAL: riquadro con testo. Il contenuto lo cambia lo script. -->
+<div class="modal" id="modal" role="dialog" aria-modal="true">
+  <div class="sheet">
+    <button class="x" data-close aria-label="Chiudi"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M5 5l14 14M19 5 5 19"/></svg></button>
+    <div id="modalBody"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+
+<script>
+/* ======================================================================
+   JAVASCRIPT — DATI E LOGICA
+   ====================================================================== */
+
+
+/* ----------------------------------------------------------------------
+   A. DATI DEI MUSICISTI
+   Ogni musicista è un blocco { ... }. Per aggiungerne uno:
+   copio tutto il blocco di Filimon, lo incollo dopo la sua } finale
+   (separato da una virgola) e cambio i valori.
+
+   Campi:
+   id          → va nell'indirizzo (#filimon-graziano). Minuscolo, con trattini.
+   instrument  → lo strumento: crea in automatico il filtro nella home.
+   area        → la città di riferimento: serve al contatore "Città".
+   heroes      → foto che girano nel carosello della home.
+   card        → foto della scheda nella griglia.
+   cover       → foto grande in apertura del profilo.
+   portrait    → foto accanto alla presentazione.
+   education   → la linea del tempo. live:true = corso in corso.
+                 cert:"chiave" = collega la tappa a un attestato qui sotto.
+   concerts    → i riquadri dei concerti.
+   certificates→ le pergamene. kind:"Premio" = conta come concorso.
+                 img: "img/nomefile.jpg" quando ho la scansione, sennò null.
+   gallery     → le foto della galleria, nell'ordine in cui le voglio.
+   ---------------------------------------------------------------------- */
+const MUSICIANS = [
+  {
+    id: "filimon-graziano",
+    first: "Filimon",
+    last: "Graziano",
+    instrument: "Pianoforte",
+    roles: ["Pianista concertista", "Camerista", "Maestro collaboratore", "Compositore"],
+    city: "Ardea (RM) · Roma",
+    area: "Roma",
+
+    heroes:   ["img/filimon-1.jpg", "img/filimon-6.jpg", "img/filimon-9.jpg"],
+    card:     "img/filimon-2.jpg",
+    cover:    "img/filimon-5.jpg",
+    portrait: "img/filimon-8.jpg",
+
+    intro: "Pianista formato al Conservatorio Santa Cecilia di Roma, dove si è diplomato come Maestro Collaboratore e in Musica da Camera con il massimo dei voti.",
+    bio:   "Oggi prosegue gli studi con il biennio di Pianoforte e il triennio di Composizione. Si muove tra repertorio solistico, musica da camera e accompagnamento di cantanti e strumentisti, con una solida base teorica in armonia, analisi e contrappunto.",
+    skills: ["Pianista", "Maestro collaboratore", "Pianista accompagnatore", "Musica da camera", "Armonia", "Analisi", "Contrappunto", "Composizione", "Ear training", "Basso continuo", "MuseScore"],
+    languages: ["Italiano", "Inglese"],
+
+    email: "twelvefil@gmail.com",
+    phone: "+39 333 909 8574",
+
+    education: [
+      { when: "Nov 2026 — in corso", title: "Diploma Accademico di II livello in Pianoforte",       where: "Conservatorio Santa Cecilia, Roma", live: true },
+      { when: "Nov 2025 — in corso", title: "Diploma Accademico di I livello in Composizione",     where: "Conservatorio Santa Cecilia, Roma", live: true },
+      { when: "Nov 2024 — Ott 2026", title: "Diploma Accademico di II livello in Musica da Camera", where: "Conservatorio Santa Cecilia, Roma", grade: "110/110 con Lode e Menzione d'onore", cert: "camera" },
+      { when: "Nov 2021 — Ott 2024", title: "Diploma Accademico di I livello — Maestro Collaboratore", where: "Conservatorio Santa Cecilia, Roma", grade: "110/110", cert: "collab" },
+      { when: "Set 2016 — Giu 2021", title: "Diploma di maturità scientifica", where: "Liceo Blaise Pascal, Pomezia", body: "Liceo Scientifico Cambridge IGCSE (Latin, English, Math & Biology).", grade: "100/100", cert: "maturita" }
+    ],
+
+    concerts: [
+      { month: "Ott", year: "2026", title: "Premiazione XI Gran Premio Teatro Amatoriale", place: "Civitavecchia (RM)", role: "Pianista concertista",
+        program: ["F. Chopin — Studio Op. 25 n. 10", "F. Chopin — Studio Op. 10 n. 1", "F. Chopin — Notturno Op. 62 n. 2"] },
+      { month: "Set", year: "2026", title: "Concerto della Pace", place: "Teatro Fara Nume, Ostia (RM)", role: "Pianista concertista",
+        program: ["F. Chopin — Studio Op. 10 n. 1", "F. Chopin — Notturno Op. 62 n. 2", "F. Chopin — Studio Op. 25 n. 10"] },
+      { month: "Mag", year: "2024", title: "Associazione Culturale Sperimentiamo", place: "Roma", role: "Pianista accompagnatore · Maestro collaboratore",
+        program: ["P. de Sarasate — Op. 43 (accompagnamento)", "W. A. Mozart — “Deh vieni, non tardar”", "F. P. Tosti — “Sogno”"] }
+    ],
+
+    certificates: [
+      { key: "swiss",    kind: "Premio",                    title: "2nd Swiss International Music Competition", seal: "2°",   grade: "Secondo premio · 90/100",              issued: "Luglio 2022", img: null },
+      { key: "camera",   kind: "Diploma Accademico II liv.", title: "Musica da Camera",                         seal: "Lode", grade: "110/110 con Lode e Menzione d'onore", issued: "Conservatorio Santa Cecilia · 2026", img: null },
+      { key: "collab",   kind: "Diploma Accademico I liv.",  title: "Maestro Collaboratore",                    seal: "110",  grade: "110/110",                             issued: "Conservatorio Santa Cecilia · 2024", img: null },
+      { key: "maturita", kind: "Diploma di maturità",        title: "Liceo Scientifico Cambridge IGCSE",        seal: "100",  grade: "100/100",                             issued: "Liceo Blaise Pascal · 2021", img: null }
+    ],
+
+    gallery: ["img/filimon-2.jpg", "img/filimon-1.jpg", "img/filimon-4.jpg", "img/filimon-6.jpg", "img/filimon-5.jpg", "img/filimon-8.jpg", "img/filimon-7.jpg", "img/filimon-9.jpg"]
+  }
+  // , { ...prossimo musicista... }
+];
+
+
+/* ----------------------------------------------------------------------
+   B. ATTREZZI PICCOLI
+   Scorciatoie che uso ovunque nello script.
+   ---------------------------------------------------------------------- */
+const $  = (sel, el = document) => el.querySelector(sel);           // trova UN elemento
+const $$ = (sel, el = document) => [...el.querySelectorAll(sel)];   // trova TUTTI gli elementi
+
+// esc() "pulisce" un testo prima di metterlo nella pagina, così
+// caratteri come < o " non rompono l'HTML
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+
+// le icone disegnate (frecce, documento) da riusare
+const ICON = {
+  arrow: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M5 12h14M13 6l6 6-6 6"/></svg>',
+  back:  '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M19 12H5M11 6l-6 6 6 6"/></svg>',
+  doc:   '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M14 3H6v18h12V7z"/><path d="M14 3v4h4"/></svg>'
+};
+
+// numero = altezza dell'header + della barra delle sezioni
+// (serve per sapere "dove finisce" la parte coperta in alto)
+const topOffset = () => {
+  const header = $("#top").offsetHeight;
+  const tabs = $(".tabs");
+  return header + (tabs ? tabs.offsetHeight : 0);
+};
+
+
+/* ----------------------------------------------------------------------
+   C. HOME — CAROSELLO DI FOTO
+   Prendo le foto "heroes" di TUTTI i musicisti e le metto in fila.
+   Ogni 6 secondi passo alla successiva. Sotto a destra scrivo
+   di chi è la foto: toccando il nome si apre il suo profilo.
+   ---------------------------------------------------------------------- */
+const slidesData = MUSICIANS.flatMap(m => m.heroes.map(src => ({ src, m })));
+let slideIndex = 0;
+let slideTimer = null;
+
+function buildCarousel() {
+  $("#slides").innerHTML = slidesData
+    .map((s, i) => `<div class="slide ${i === 0 ? 'on' : ''}" style="background-image:url(${s.src})"></div>`)
+    .join("");
+  showSlide(0);
+}
+
+function showSlide(i) {
+  slideIndex = (i + slidesData.length) % slidesData.length;   // se supero l'ultima, riparto dalla prima
+  $$(".slide").forEach((el, n) => el.classList.toggle("on", n === slideIndex));
+  const m = slidesData[slideIndex].m;
+  $("#slideCaption").innerHTML = `
+    <span>In foto: <button data-open="${m.id}">${esc(m.first)} ${esc(m.last)}</button></span>
+    <div class="dots">${slidesData.map((_, n) => `<button data-slide="${n}" class="${n === slideIndex ? 'on' : ''}" aria-label="Foto ${n + 1}"></button>`).join("")}</div>`;
+}
+
+function startCarousel() {
+  stopCarousel();
+  if (slidesData.length > 1) slideTimer = setInterval(() => showSlide(slideIndex + 1), 6000);
+}
+function stopCarousel() { clearInterval(slideTimer); }
+
+
+/* ----------------------------------------------------------------------
+   D. HOME — RICERCA, FILTRI E SCHEDE
+   ---------------------------------------------------------------------- */
+let activeFilter = "Tutti";   // il filtro selezionato
+let query = "";               // cosa ho scritto nella ricerca
+
+// I filtri: "Tutti" + gli strumenti che ci sono davvero nei dati
+// + alcuni fissi, così il sito sembra già "aperto" a tutti
+function renderChips() {
+  const list = [...new Set(["Tutti", ...MUSICIANS.map(m => m.instrument), "Violino", "Canto", "Composizione"])];
+  $("#chips").innerHTML = list
+    .map(f => `<button class="chip ${f === activeFilter ? 'on' : ''}" data-filter="${esc(f)}">${esc(f)}</button>`)
+    .join("");
+}
+
+// Un musicista "passa" se il suo testo contiene il filtro E tutte le parole cercate
+function matches(m) {
+  const text = [m.first, m.last, m.instrument, m.city, m.area, ...m.roles, ...m.skills].join(" ").toLowerCase();
+  const filterOk = activeFilter === "Tutti" || text.includes(activeFilter.toLowerCase());
+  const queryOk  = !query || query.toLowerCase().split(/\s+/).every(word => text.includes(word));
+  return filterOk && queryOk;
+}
+
+// Disegna le schede dei musicisti che passano il filtro
+function renderGrid() {
+  const list = MUSICIANS.filter(matches);
+  const searching = query || activeFilter !== "Tutti";
+
+  const cards = list.map(m => `
+    <button class="card rv" data-open="${m.id}">
+      <img src="${m.card}" alt="${esc(m.first + ' ' + m.last)}" loading="lazy">
+      <span class="arrow">${ICON.arrow}</span>
+      <div class="meta">
+        <div class="inst">${esc(m.instrument)} · ${esc(m.area)}</div>
+        <h3>${esc(m.first)} ${esc(m.last)}</h3>
+        <div class="tags">${m.roles.slice(0, 3).map(r => `<span>${esc(r)}</span>`).join("")}</div>
+      </div>
+    </button>`).join("");
+
+  // la scheda "Il tuo profilo qui" la mostro solo quando non sto cercando
+  const joinCard = searching ? "" : `
+    <button class="card join rv" data-action="join">
+      <div class="plus">+</div>
+      <h3>Il tuo profilo qui</h3>
+      <p>Sei un giovane musicista? Manda il tuo CV e qualche foto: lo pubblichiamo noi.</p>
+    </button>`;
+
+  $("#grid").innerHTML = cards + joinCard;
+  $("#empty").style.display = list.length ? "none" : "block";
+  $("#resultInfo").textContent = searching
+    ? `${list.length} ${list.length === 1 ? 'musicista trovato' : 'musicisti trovati'}`
+    : "Apri un profilo per leggere il curriculum completo, sfogliare le foto e vedere i diplomi.";
+  watchReveal();
+}
+
+// I numeri della fascia: li conto dai dati e li faccio "salire" da 0
+function countUp() {
+  const values = {
+    musicians:   MUSICIANS.length,
+    instruments: new Set(MUSICIANS.map(m => m.instrument)).size,
+    cities:      new Set(MUSICIANS.map(m => m.area)).size
+  };
+  $$("[data-count]").forEach(el => {
+    const target = values[el.dataset.count];
+    let n = 0;
+    const t = setInterval(() => { n++; el.textContent = Math.min(n, target); if (n >= target) clearInterval(t); }, 120);
+  });
+}
+
+
+/* ----------------------------------------------------------------------
+   E. PROFILO — COSTRUZIONE DELLA PAGINA
+   Prende un musicista e scrive tutto l'HTML del suo profilo.
+   ---------------------------------------------------------------------- */
+let current = null;   // il musicista aperto in questo momento
+
+// le voci della barra delle sezioni: [id della sezione, testo]
+const SECTIONS = [
+  ["profilo", "Profilo"], ["formazione", "Formazione"], ["concerti", "Concerti"],
+  ["galleria", "Galleria"], ["diplomi", "Diplomi e premi"], ["contatti", "Contatti"]
+];
+
+function renderProfile(m) {
+  current = m;
+  const certKeys = new Set(m.certificates.map(c => c.key));
+
+  // I 4 numeri sotto la foto: calcolati dai dati, non scritti a mano
+  const facts = [
+    [m.education.filter(e => !e.live).length,               "Diplomi"],    // tappe concluse
+    [m.concerts.length,                                     "Concerti"],
+    [m.certificates.filter(c => c.kind === "Premio").length, "Concorsi"],  // attestati di tipo Premio
+    [m.languages.length,                                    "Lingue"]
+  ];
+
+  $("#v-profile").innerHTML = `
+
+    <!-- APERTURA -->
+    <section class="p-hero" id="pHero">
+      <div class="bg" style="background-image:url(${m.cover})"></div>
+      <div class="wrap">
+        <a class="back" href="#home">${ICON.back} Tutti i musicisti</a>
+        <div class="eyebrow">${esc(m.instrument)} · ${esc(m.city)}</div>
+        <h1>${esc(m.first)}<span>${esc(m.last)}</span></h1>
+        <p class="p-role">${m.roles.map(esc).join(" · ")}</p>
+        <div class="p-cta">
+          <button class="btn gold"  data-goto="contatti">Contatta ${esc(m.first)}</button>
+          <button class="btn ghost" data-goto="galleria">Guarda le foto</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4 NUMERI -->
+    <div class="facts">${facts.map(f => `<div><b>${f[0]}</b><span>${f[1]}</span></div>`).join("")}</div>
+
+    <!-- BARRA DELLE SEZIONI -->
+    <nav class="tabs"><div class="wrap">
+      ${SECTIONS.map(([id, label], i) => `<button data-goto="${id}" class="${i === 0 ? 'on' : ''}">${label}</button>`).join("")}
+    </div></nav>
+
+    <!-- PROFILO -->
+    <section class="sec" id="s-profilo" data-section="profilo"><div class="wrap about">
+      <div class="portrait rv"><img src="${m.portrait}" alt="${esc(m.first)} al pianoforte"></div>
+      <div class="rv">
+        <p class="intro">${esc(m.intro)}</p>
+        <p class="bio">${esc(m.bio)}</p>
+        <div class="skills">${m.skills.map(s => `<span>${esc(s)}</span>`).join("")}</div>
+        <div class="langs">Lingue: <b>${m.languages.map(esc).join(", ")}</b></div>
+      </div>
+    </div></section>
+
+    <!-- FORMAZIONE -->
+    <section class="sec alt" id="s-formazione" data-section="formazione"><div class="wrap">
+      <div class="sec-head rv"><h2>Formazione</h2><p>Tocca un diploma per vedere il documento.</p></div>
+      ${m.education.map(e => `
+        <div class="tl-item rv ${e.live ? 'live' : ''}">
+          <div class="when">${esc(e.when)}</div>
+          <div class="dot"><i></i></div>
+          <div class="txt">
+            <h3>${esc(e.title)}${e.live ? '<span class="badge">In corso</span>' : ''}</h3>
+            <div class="where">${esc(e.where)}</div>
+            ${e.body  ? `<div class="body">${esc(e.body)}</div>` : ''}
+            ${e.grade ? `<div class="grade">${esc(e.grade)}</div>` : ''}
+            ${e.cert && certKeys.has(e.cert) ? `<button class="doc-link" data-cert="${e.cert}">${ICON.doc} Vedi il diploma</button>` : ''}
+          </div>
+        </div>`).join("")}
+    </div></section>
+
+    <!-- CONCERTI -->
+    <section class="sec" id="s-concerti" data-section="concerti"><div class="wrap">
+      <div class="sec-head rv"><h2>Concerti ed esperienze</h2></div>
+      <div class="concerts">${m.concerts.map(c => `
+        <article class="concert rv">
+          <div class="date"><b>${esc(c.month)}</b><span>${esc(c.year)}</span></div>
+          <h3>${esc(c.title)}</h3>
+          <div class="place">${esc(c.place)}</div>
+          <div class="role">${esc(c.role)}</div>
+          <ul>${c.program.map(p => `<li>${esc(p)}</li>`).join("")}</ul>
+        </article>`).join("")}
+      </div>
+    </div></section>
+
+    <!-- GALLERIA -->
+    <section class="sec" id="s-galleria" data-section="galleria" style="padding-top:20px"><div class="wrap">
+      <div class="sec-head rv"><h2>Galleria</h2><p>Tocca una foto per aprirla a schermo intero.</p></div>
+      <div class="gallery">${m.gallery.map((src, i) => `<button class="rv" data-photo="${i}"><img src="${src}" alt="Foto ${i + 1} di ${esc(m.first)}" loading="lazy"></button>`).join("")}</div>
+    </div></section>
+
+    <!-- DIPLOMI E PREMI -->
+    <section class="sec alt" id="s-diplomi" data-section="diplomi"><div class="wrap">
+      <div class="sec-head rv"><h2>Diplomi e premi</h2><p>Ogni attestato si apre con i dettagli e la scansione del documento.</p></div>
+      <div class="certs">${m.certificates.map(c => c.img ? `
+        <button class="cert has-img rv" data-cert="${c.key}"><img src="${c.img}" alt="${esc(c.title)}"></button>` : `
+        <button class="cert rv" data-cert="${c.key}">
+          <div><div class="kind">${esc(c.kind)}</div><h3>${esc(c.title)}</h3></div>
+          <div class="seal">${esc(c.seal)}</div>
+          <div><div class="grade">${esc(c.grade)}</div><div class="inst">${esc(c.issued)}</div><div class="open">Apri ›</div></div>
+        </button>`).join("")}
+      </div>
+    </div></section>
+
+    <!-- CONTATTI -->
+    <section class="contact" id="s-contatti" data-section="contatti"><div class="wrap">
+      <h2 class="rv">Lavora con <em>${esc(m.first)}</em></h2>
+      <p>Recital, accompagnamenti, musica da camera, audizioni, eventi privati.</p>
+      <div class="c-rows">
+        <div class="c-row"><div><small>Email</small><a href="mailto:${m.email}">${esc(m.email)}</a></div><button data-copy="${esc(m.email)}">Copia</button></div>
+        <div class="c-row"><div><small>Telefono</small><a href="tel:${m.phone.replace(/\s/g, '')}">${esc(m.phone)}</a></div><button data-copy="${esc(m.phone)}">Copia</button></div>
+      </div>
+    </div></section>
+
+    <footer><div class="wrap"><a href="#home" style="text-decoration:none">← Torna a tutti i musicisti</a><span>Leggio · 2026</span></div></footer>`;
+
+  requestAnimationFrame(() => $("#pHero").classList.add("ready"));  // fa partire lo zoom della foto
+  watchReveal();
+  updateActiveTab();
+}
+
+
+/* ----------------------------------------------------------------------
+   F. PROFILO — BARRA DELLE SEZIONI (salto + lineetta)
+   goToSection(): calcolo la posizione ESATTA della sezione meno lo
+   spazio coperto da header e barra, e scorro lì.
+   Durante lo scorrimento "blocco" la lineetta sulla voce toccata,
+   così non salta sulle sezioni che attraversa.
+   updateActiveTab(): guardo qual è l'ultima sezione il cui inizio è
+   già passato sotto la barra → quella è la sezione attiva.
+   ---------------------------------------------------------------------- */
+let lockTabs = false;
+let unlockTimer = null;
+
+function goToSection(id) {
+  const target = $(`[data-section="${id}"]`);
+  if (!target) return;
+  const y = target.getBoundingClientRect().top + window.scrollY - topOffset() + 1;
+  setActiveTab(id);
+  lockTabs = true;
+  window.scrollTo({ top: y, behavior: "smooth" });
+  // sblocco quando lo scorrimento si ferma (o comunque dopo 1,2 secondi)
+  clearTimeout(unlockTimer);
+  unlockTimer = setTimeout(() => { lockTabs = false; updateActiveTab(); }, 1200);
+}
+
+function setActiveTab(id) {
+  $$(".tabs button").forEach(b => {
+    const on = b.dataset.goto === id;
+    b.classList.toggle("on", on);
+    // sul telefono la barra scorre di lato: porto la voce attiva in vista
+    if (on) b.parentElement.scrollTo({ left: b.offsetLeft - 20, behavior: "smooth" });
+  });
+}
+
+function updateActiveTab() {
+  if (lockTabs || !$("#v-profile").classList.contains("on")) return;
+  const sections = $$("[data-section]");
+  const line = topOffset() + 10;                          // la "riga" appena sotto la barra
+  let active = sections[0].dataset.section;
+  sections.forEach(s => { if (s.getBoundingClientRect().top <= line) active = s.dataset.section; });
+  // se sono in fondo alla pagina, l'ultima sezione è sempre quella attiva
+  if (window.innerHeight + window.scrollY >= document.body.scrollHeight - 4) active = sections[sections.length - 1].dataset.section;
+  const currentOn = $(".tabs button.on");
+  if (!currentOn || currentOn.dataset.goto !== active) setActiveTab(active);
+}
+
+
+/* ----------------------------------------------------------------------
+   G. FINESTRE: diploma, "Come funziona", "Unisciti"
+   ---------------------------------------------------------------------- */
+function openCertificate(key) {
+  const c = current.certificates.find(x => x.key === key);
+  if (!c) return;
+  openModal(`
+    <div class="eyebrow">${esc(c.kind)}</div>
+    <h3>${esc(c.title)}</h3>
+    <dl>
+      <dt>Titolare</dt><dd>${esc(current.first + ' ' + current.last)}</dd>
+      <dt>Esito</dt><dd>${esc(c.grade)}</dd>
+      <dt>Rilasciato</dt><dd>${esc(c.issued)}</dd>
+    </dl>
+    <div class="doc">${c.img
+      ? `<img src="${c.img}" alt="Scansione: ${esc(c.title)}" data-zoom="${c.img}">`
+      : `${ICON.doc}<br><br>La scansione del documento sarà disponibile a breve.`}</div>`);
+}
+
+function openHowItWorks() {
+  openModal(`
+    <div class="eyebrow">Come funziona</div>
+    <h3>Un posto solo per trovare musicisti</h3>
+    <p>Leggio raccoglie i curricula dei giovani musicisti, con foto, concerti e diplomi, così chi cerca un musicista lo trova in pochi secondi.</p>
+
+    <h4>Se cerchi un musicista</h4>
+    <div class="steps">
+      <div><b>I</b><div><h4 style="margin:0;color:var(--paper);letter-spacing:0;text-transform:none;font-size:.95rem">Cerca</h4><p>Scegli lo strumento dai filtri o scrivi nome, ruolo o città.</p></div></div>
+      <div><b>II</b><div><h4 style="margin:0;color:var(--paper);letter-spacing:0;text-transform:none;font-size:.95rem">Valuta</h4><p>Apri il profilo: formazione, concerti, foto e diplomi consultabili.</p></div></div>
+      <div><b>III</b><div><h4 style="margin:0;color:var(--paper);letter-spacing:0;text-transform:none;font-size:.95rem">Contatta</h4><p>Email e telefono sono nel profilo: scrivi direttamente al musicista.</p></div></div>
+    </div>
+
+    <h4>Se sei un musicista</h4>
+    <p>Mandaci CV, foto e scansioni dei diplomi: costruiamo noi il tuo profilo e lo pubblichiamo.</p>
+    <div style="margin-top:1.4rem"><button class="btn gold" data-action="join">Voglio entrare</button></div>`);
+}
+
+function openJoin() {
+  openModal(`
+    <div class="eyebrow">Unisciti a Leggio</div>
+    <h3>Pubblica il tuo profilo</h3>
+    <p>Il sito è pensato per giovani musicisti di ogni strumento. Per entrare basta inviare:</p>
+    <ol>
+      <li>Il tuo CV (anche in PDF)</li>
+      <li>5–10 foto di buona qualità, meglio se in concerto o allo strumento</li>
+      <li>Le scansioni di diplomi, attestati e premi</li>
+      <li>Repertorio o programmi che proponi</li>
+    </ol>
+    <div class="c-row"><div><small>Invia a</small><a href="mailto:jacopoarga@gmail.com">jacopoarga@gmail.com</a></div><button data-copy="jacopoarga@gmail.com">Copia</button></div>`);
+}
+
+
+/* ----------------------------------------------------------------------
+   H. APRIRE E CHIUDERE LE FINESTRE (modal e lightbox)
+   ---------------------------------------------------------------------- */
+const modal = $("#modal");
+const lb = $("#lb");
+
+function show(el) {
+  el.classList.add("on");
+  requestAnimationFrame(() => el.classList.add("vis"));   // un attimo dopo → dissolvenza
+  document.body.style.overflow = "hidden";                // blocco lo scorrimento sotto
+}
+function hide(el) {
+  el.classList.remove("vis");
+  setTimeout(() => {
+    el.classList.remove("on");
+    if (!$(".modal.on, .lb.on")) document.body.style.overflow = "";
+  }, 300);
+}
+function openModal(html) { $("#modalBody").innerHTML = html; show(modal); }
+
+// Lightbox: una lista di foto + quale sto guardando
+let lbList = [], lbIndex = 0;
+function openLightbox(list, i) { lbList = list; lbIndex = i; paintLightbox(); show(lb); }
+function paintLightbox() {
+  const img = $("#lbImg");
+  img.style.opacity = 0;
+  setTimeout(() => { img.src = lbList[lbIndex]; img.onload = () => (img.style.opacity = 1); }, 120);
+  const many = lbList.length > 1;
+  $("#lbCount").textContent = many ? `${lbIndex + 1} / ${lbList.length}` : "";
+  $$(".lb .prev, .lb .next").forEach(b => (b.style.display = many ? "grid" : "none"));
+}
+function stepLightbox(d) { lbIndex = (lbIndex + d + lbList.length) % lbList.length; paintLightbox(); }
+
+$(".lb .prev").onclick = e => { e.stopPropagation(); stepLightbox(-1); };
+$(".lb .next").onclick = e => { e.stopPropagation(); stepLightbox(1); };
+
+// chiudo toccando fuori o sulla X
+lb.addEventListener("click", e => { if (e.target === lb || e.target.closest("[data-close]")) hide(lb); });
+modal.addEventListener("click", e => { if (e.target === modal || e.target.closest("[data-close]")) hide(modal); });
+
+// sul telefono: scorrere col dito a destra/sinistra cambia foto
+let touchX = null;
+lb.addEventListener("touchstart", e => (touchX = e.touches[0].clientX), { passive: true });
+lb.addEventListener("touchend", e => {
+  if (touchX === null) return;
+  const dx = e.changedTouches[0].clientX - touchX;
+  if (Math.abs(dx) > 50) stepLightbox(dx < 0 ? 1 : -1);
+  touchX = null;
+});
+
+// sul computer: frecce della tastiera ed Esc
+document.addEventListener("keydown", e => {
+  if (lb.classList.contains("on")) {
+    if (e.key === "ArrowRight") stepLightbox(1);
+    if (e.key === "ArrowLeft")  stepLightbox(-1);
+    if (e.key === "Escape")     hide(lb);
+  } else if (modal.classList.contains("on") && e.key === "Escape") hide(modal);
+});
+
+
+/* ----------------------------------------------------------------------
+   I. COPIA NEGLI APPUNTI + FUMETTO
+   ---------------------------------------------------------------------- */
+function toast(text) {
+  const el = $("#toast");
+  el.textContent = text;
+  el.classList.add("on");
+  clearTimeout(el._t);
+  el._t = setTimeout(() => el.classList.remove("on"), 1800);
+}
+async function copyText(text, btn) {
+  try {
+    await navigator.clipboard.writeText(text);
+    btn.textContent = "Copiato"; btn.classList.add("ok");
+    toast("Copiato negli appunti");
+    setTimeout(() => { btn.textContent = "Copia"; btn.classList.remove("ok"); }, 1600);
+  } catch (_) { toast(text); }   // se il browser non permette di copiare, almeno mostro il testo
+}
+
+
+/* ----------------------------------------------------------------------
+   J. UN SOLO "ASCOLTATORE" PER TUTTI I TOCCHI
+   Invece di collegare ogni bottone uno per uno, ascolto i tocchi su
+   tutta la pagina e guardo che attributo data-… ha l'elemento toccato.
+   ---------------------------------------------------------------------- */
+document.addEventListener("click", e => {
+  const t = e.target.closest("[data-open],[data-action],[data-cert],[data-photo],[data-goto],[data-copy],[data-filter],[data-zoom],[data-slide]");
+  if (!t) return;
+  const d = t.dataset;
+
+  if (d.open)                    location.hash = d.open;                       // apro un profilo
+  else if (d.action === "join")  { hide(modal); setTimeout(openJoin, modal.classList.contains("on") ? 320 : 0); }
+  else if (d.action === "how")   openHowItWorks();
+  else if (d.action === "roster") {                                            // "Musicisti" nel menu
+    if (!$("#v-home").classList.contains("on")) location.hash = "home";
+    setTimeout(() => window.scrollTo({ top: $("#roster").getBoundingClientRect().top + scrollY - topOffset(), behavior: "smooth" }), 80);
+  }
+  else if (d.cert)               openCertificate(d.cert);                      // pergamena o "Vedi il diploma"
+  else if (d.photo !== undefined) openLightbox(current.gallery, +d.photo);    // foto della galleria
+  else if (d.zoom)               { hide(modal); setTimeout(() => openLightbox([d.zoom], 0), 250); }
+  else if (d.goto)               goToSection(d.goto);                          // voce della barra sezioni
+  else if (d.copy)               copyText(d.copy, t);
+  else if (d.filter)             { activeFilter = d.filter; renderChips(); renderGrid(); }
+  else if (d.slide !== undefined) { showSlide(+d.slide); startCarousel(); }   // pallino del carosello
+});
+
+// ricerca: filtra mentre scrivo, e con "Cerca" scendo alle schede
+$("#q").addEventListener("input", e => { query = e.target.value.trim(); renderGrid(); });
+$("#searchForm").addEventListener("submit", e => {
+  e.preventDefault();
+  query = $("#q").value.trim();
+  renderGrid();
+  window.scrollTo({ top: $("#roster").getBoundingClientRect().top + scrollY - topOffset(), behavior: "smooth" });
+});
+
+
+/* ----------------------------------------------------------------------
+   K. COSE CHE SUCCEDONO MENTRE SCORRO
+   ---------------------------------------------------------------------- */
+// comparsa morbida degli elementi .rv quando entrano nello schermo
+let revealObserver;
+function watchReveal() {
+  revealObserver && revealObserver.disconnect();
+  revealObserver = new IntersectionObserver(entries => entries.forEach(en => {
+    if (en.isIntersecting) { en.target.classList.add("in"); revealObserver.unobserve(en.target); }
+  }), { threshold: .12, rootMargin: "0px 0px -40px 0px" });
+  $$(".view.on .rv:not(.in)").forEach((el, i) => {
+    el.style.transitionDelay = (i % 4) * 70 + "ms";   // piccoli ritardi a cascata
+    revealObserver.observe(el);
+  });
+}
+
+window.addEventListener("scroll", () => {
+  $("#top").classList.toggle("solid", scrollY > 40);   // header scuro dopo 40px
+  updateActiveTab();                                   // aggiorno la lineetta delle sezioni
+}, { passive: true });
+
+
+/* ----------------------------------------------------------------------
+   L. ROUTER — decide quale pagina mostrare
+   Leggo il pezzo dopo il # nell'indirizzo:
+   • se è l'id di un musicista → mostro il suo profilo
+   • altrimenti → mostro la home
+   Si riattiva ogni volta che il # cambia (hashchange).
+   ---------------------------------------------------------------------- */
+function route() {
+  const hash = location.hash.slice(1);
+  const m = MUSICIANS.find(x => x.id === hash);
+  [modal, lb].forEach(el => { if (el.classList.contains("on")) hide(el); });   // cambiando pagina chiudo le finestre aperte
+  $$(".view").forEach(v => v.classList.remove("on"));
+
+  if (m) {
+    $("#v-profile").classList.add("on");
+    stopCarousel();                       // il carosello è inutile se non sono in home
+    renderProfile(m);
+    document.title = `${m.first} ${m.last} — Leggio`;
+  } else {
+    $("#v-home").classList.add("on");
+    startCarousel();
+    renderGrid();
+    document.title = "Leggio — Giovani Musicisti";
+  }
+  window.scrollTo(0, 0);
+  $("#top").classList.toggle("solid", scrollY > 40);
+}
+window.addEventListener("hashchange", route);
+
+
+/* ----------------------------------------------------------------------
+   M. AVVIO — la prima cosa che succede quando si apre il sito
+   ---------------------------------------------------------------------- */
+buildCarousel();
+renderChips();
+countUp();
+route();
+</script>
+</body>
+</html>
